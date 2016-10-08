@@ -1427,6 +1427,8 @@ public class HFileReaderImpl implements HFile.Reader, Configurable {
     }
   }
 
+  CounterMetric readBlockCounter = MetricManager.getCounterMetric("hfile.readBlock.count");
+
   @Override
   public HFileBlock readBlock(long dataBlockOffset, long onDiskBlockSize,
       final boolean cacheBlock, boolean pread, final boolean isCompaction,
@@ -1436,6 +1438,7 @@ public class HFileReaderImpl implements HFile.Reader, Configurable {
     if (dataBlockIndexReader == null) {
       throw new IOException("Block index not loaded");
     }
+    readBlockCounter.markEvent();
     long trailerOffset = trailer.getLoadOnOpenDataOffset();
     if (dataBlockOffset < 0 || dataBlockOffset >= trailerOffset) {
       throw new IOException("Requested block is out of range: " + dataBlockOffset +

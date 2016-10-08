@@ -2306,6 +2306,9 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
   private CounterMetric multiOutNum = MetricManager.getCounterMetric(RSRpcServices.class, "multiNum");
 
   private TimedMetric multiTime = MetricManager.getTimedMetric(RSRpcServices.class, "multiRPCTime");
+  private TimedMetric halfTime = MetricManager.getTimedMetric(RSRpcServices.class, "halfMultiTime");
+  private TimedMetric mutationTime = MetricManager.getTimedMetric(RSRpcServices.class, "mutationTime");
+
 
   /**
    * Execute multiple actions on a table: get, mutate, and/or execCoprocessor
@@ -2400,8 +2403,11 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
           closeCallBack = new RegionScannersCloseCallBack();
           context.setCallBack(closeCallBack);
         }
+        TimedEvent mutationTimedEvent = mutationTime.startEvent();
         cellsToReturn = doNonAtomicRegionMutation(region, quota, regionAction, cellScanner,
             regionActionResultBuilder, cellsToReturn, nonceGroup, closeCallBack, context);
+        mutationTimedEvent.endWithSuccess();
+
       }
       responseBuilder.addRegionActionResult(regionActionResultBuilder.build());
       quota.close();
