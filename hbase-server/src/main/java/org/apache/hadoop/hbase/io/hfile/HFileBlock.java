@@ -54,6 +54,8 @@ import org.apache.hadoop.io.IOUtils;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import org.avaje.metric.CounterMetric;
+import org.avaje.metric.MetricManager;
 
 /**
  * Reads {@link HFile} version 2 blocks to HFiles and via {@link Cacheable} Interface to caches.
@@ -1462,6 +1464,11 @@ public class HFileBlock implements Cacheable {
       };
     }
 
+
+    CounterMetric counter1 = MetricManager.getCounterMetric("hfile.readAtOffset.all");
+    CounterMetric counter2 = MetricManager.getCounterMetric("hfile.readAtOffset.all.a");
+    CounterMetric counter3 = MetricManager.getCounterMetric("hfile.readAtOffset.all.b");
+    CounterMetric counter4 = MetricManager.getCounterMetric("hfile.readAtOffset.all.c");
     /**
      * Does a positional read or a seek and read into the given buffer. Returns
      * the on-disk size of the next block, or -1 if it could not be read/determined; e.g. EOF.
@@ -1488,6 +1495,7 @@ public class HFileBlock implements Cacheable {
             "-byte array at offset " + destOffset);
       }
 
+      counter1.markEvent();
       if (!pread && streamLock.tryLock()) {
         // Seek + read. Better for scanning.
         try {
@@ -1501,11 +1509,13 @@ public class HFileBlock implements Cacheable {
           }
 
           if (!peekIntoNextBlock) {
+            counter2.markEvent();
             IOUtils.readFully(istream, dest, destOffset, size);
             return -1;
           }
 
           // Try to read the next block header.
+          counter3.markEvent();
           if (!readWithExtra(istream, dest, destOffset, size, hdrSize)) {
             return -1;
           }
@@ -1515,6 +1525,7 @@ public class HFileBlock implements Cacheable {
       } else {
         // Positional read. Better for random reads; or when the streamLock is already locked.
         int extraSize = peekIntoNextBlock ? hdrSize : 0;
+        counter4.markEvent();
         if (!positionalReadWithExtra(istream, fileOffset, dest, destOffset, size, extraSize)) {
           return -1;
         }
