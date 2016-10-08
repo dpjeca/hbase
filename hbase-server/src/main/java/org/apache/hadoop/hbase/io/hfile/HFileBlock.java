@@ -56,6 +56,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import org.avaje.metric.CounterMetric;
 import org.avaje.metric.MetricManager;
+import org.avaje.metric.TimedEvent;
+import org.avaje.metric.TimedMetric;
 
 /**
  * Reads {@link HFile} version 2 blocks to HFiles and via {@link Cacheable} Interface to caches.
@@ -763,6 +765,10 @@ public class HFileBlock implements Cacheable {
     return bytesRemaining <= 0;
   }
 
+  static TimedMetric time1 = MetricManager.getTimedMetric("posRead.all");
+  static TimedMetric time2 = MetricManager.getTimedMetric("posRead.all.in");
+  static CounterMetric counter1 = MetricManager.getCounterMetric("posRead.count.all");
+  static CounterMetric counter2 = MetricManager.getCounterMetric("posRead.count.all.in");
   /**
    * Read from an input stream at least <code>necessaryLen</code> and if possible,
    * <code>extraLen</code> also if available. Analogous to
@@ -787,8 +793,13 @@ public class HFileBlock implements Cacheable {
       throws IOException {
     int bytesRemaining = necessaryLen + extraLen;
     int bytesRead = 0;
+    TimedEvent aaa = time1.startEvent();
+    counter1.markEvent();
     while (bytesRead < necessaryLen) {
+      TimedEvent bbb = time2.startEvent();
+      counter2.markEvent();
       int ret = in.read(position, buf, bufOffset, bytesRemaining);
+      bbb.endWithSuccess();
       if (ret < 0) {
         throw new IOException("Premature EOF from inputStream (positional read "
             + "returned " + ret + ", was trying to read " + necessaryLen
@@ -800,6 +811,7 @@ public class HFileBlock implements Cacheable {
       bytesRemaining -= ret;
       bytesRead += ret;
     }
+    aaa.endWithSuccess();
     return bytesRead != necessaryLen && bytesRemaining <= 0;
   }
 
