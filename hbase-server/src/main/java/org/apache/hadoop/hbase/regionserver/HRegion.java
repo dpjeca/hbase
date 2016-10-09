@@ -5869,6 +5869,9 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
 
 
     TimedMetric populateNext = MetricManager.getTimedMetric("populateResult.heapnext");
+    CounterMetric populateCount = MetricManager.getCounterMetric("populateResult.count");
+    CounterMetric populateLoopCount = MetricManager.getCounterMetric("populateResult.loopCount");
+
     /**
      * Fetches records with currentRow into results list, until next row, batchLimit (if not -1) is
      * reached, or remainingResultSize (if not -1) is reaced
@@ -5884,8 +5887,10 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
       boolean tmpKeepProgress = scannerContext.getKeepProgress();
       // Scanning between column families and thus the scope is between cells
       LimitScope limitScope = LimitScope.BETWEEN_CELLS;
+      populateCount.markEvent();
       try {
         do {
+          populateLoopCount.markEvent();
           // We want to maintain any progress that is made towards the limits while scanning across
           // different column families. To do this, we toggle the keep progress flag on during calls
           // to the StoreScanner to ensure that any progress made thus far is not wiped away.
