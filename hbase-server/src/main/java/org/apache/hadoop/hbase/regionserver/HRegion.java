@@ -5867,6 +5867,8 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
       return moreValues;
     }
 
+
+    TimedMetric populateNext = MetricManager.getTimedMetric("populateResult.heapnext");
     /**
      * Fetches records with currentRow into results list, until next row, batchLimit (if not -1) is
      * reached, or remainingResultSize (if not -1) is reaced
@@ -5888,7 +5890,9 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
           // different column families. To do this, we toggle the keep progress flag on during calls
           // to the StoreScanner to ensure that any progress made thus far is not wiped away.
           scannerContext.setKeepProgress(true);
+          TimedEvent event = populateNext.startEvent();
           heap.next(results, scannerContext);
+          event.endWithSuccess();
           scannerContext.setKeepProgress(tmpKeepProgress);
 
           nextKv = heap.peek();
