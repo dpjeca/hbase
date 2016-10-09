@@ -196,6 +196,8 @@ import org.apache.htrace.Trace;
 import org.apache.htrace.TraceScope;
 import org.avaje.metric.CounterMetric;
 import org.avaje.metric.MetricManager;
+import org.avaje.metric.TimedEvent;
+import org.avaje.metric.TimedMetric;
 
 
 @SuppressWarnings("deprecation")
@@ -5934,9 +5936,16 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
       return this.filter != null && this.filter.filterAllRemaining();
     }
 
+    private CounterMetric nextCounter = MetricManager.getCounterMetric("regionscannerimpl.nextInternal");
+    private CounterMetric nextCounterLoop = MetricManager.getCounterMetric("regionscannerimpl.nextInternal.loop");
+    private CounterMetric nextCounterLoopA = MetricManager.getCounterMetric("regionscannerimpl.nextInternal.loop.a");
+    private CounterMetric nextCounterLoopB = MetricManager.getCounterMetric("regionscannerimpl.nextInternal.loop.b");
+    private CounterMetric nextCounterLoopC = MetricManager.getCounterMetric("regionscannerimpl.nextInternal.loop.c");
+    private TimedMetric populateTimer  = MetricManager.getTimedMetric("regionscannerimpl.nextInternal.populateTime");
     private boolean nextInternal(List<Cell> results, ScannerContext scannerContext)
         throws IOException {
       nextInternalCount.markEvent();
+      nextCounter.markEvent();
       if (!results.isEmpty()) {
         throw new IllegalArgumentException("First parameter should be an empty list");
       }
@@ -5960,6 +5969,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
       while (true) {
         // Starting to scan a new row. Reset the scanner progress according to whether or not
         // progress should be kept.
+        nextCounterLoop.markEvent();
         if (scannerContext.getKeepProgress()) {
           // Progress should be kept. Reset to initial values seen at start of method invocation.
           scannerContext.setProgress(initialBatchProgress, initialSizeProgress,
@@ -6013,6 +6023,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
             if (hasFilterRow) {
               filter.filterRowCells(results);
             }
+            nextCounterLoopA.markEvent();
             return scannerContext.setScannerState(NextState.NO_MORE_VALUES).hasMoreValues();
           }
 
@@ -6038,7 +6049,10 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
 
           // Ok, we are good, let's try to get some results from the main heap.
           startPopulateResultCount.markEvent();
+          nextCounterLoopB.markEvent();
+          TimedEvent populateTime = populateTimer.startEvent();
           populateResult(results, this.storeHeap, scannerContext, current);
+          populateTime.endWithSuccess();
           stopPopulateResultCount.markEvent();
 
           if (scannerContext.checkAnyLimitReached(LimitScope.BETWEEN_CELLS)) {
@@ -6135,6 +6149,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
         if (stopRow) {
           return scannerContext.setScannerState(NextState.NO_MORE_VALUES).hasMoreValues();
         } else {
+          nextCounterLoopC.markEvent();
           return scannerContext.setScannerState(NextState.MORE_VALUES).hasMoreValues();
         }
       }
