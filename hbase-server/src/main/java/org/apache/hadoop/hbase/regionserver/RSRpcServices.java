@@ -2261,6 +2261,8 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
     }
   }
 
+  TimedMetric getScanner = MetricManager.getTimedMetric("get.time.getscanner");
+  TimedMetric getResult = MetricManager.getTimedMetric("get.time.getResult");
   private Result get(Get get, HRegion region, RegionScannersCloseCallBack closeCallBack,
       RpcCallContext context) throws IOException {
     region.prepareGet(get);
@@ -2278,8 +2280,12 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
 
     RegionScanner scanner = null;
     try {
+      TimedEvent getScannerTime = getScanner.startEvent();
       scanner = region.getScanner(scan);
+      getScannerTime.endWithSuccess();
+      TimedEvent getResultTime = getResult.startEvent();
       scanner.next(results);
+      getResultTime.endWithSuccess();
     } finally {
       if (scanner != null) {
         if (closeCallBack == null) {
