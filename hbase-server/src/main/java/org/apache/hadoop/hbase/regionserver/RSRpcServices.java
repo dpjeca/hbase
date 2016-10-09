@@ -698,6 +698,9 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
     return r;
   }
 
+  CounterMetric contextNull = MetricManager.getCounterMetric("Get.withNullContext");
+  CounterMetric contextNotNull = MetricManager.getCounterMetric("Get.withContext");
+
   /**
    * Run through the regionMutation <code>rm</code> and per Mutation, do the work, and then when
    * done, add an instance of a {@link ResultOrException} that corresponds to each Mutation.
@@ -767,8 +770,10 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
           try {
             Get get = ProtobufUtil.toGet(action.getGet());
             if (context != null) {
+              contextNotNull.markEvent();
               r = get(get, ((HRegion) region), closeCallBack, context);
             } else {
+              contextNull.markEvent();
               r = region.get(get);
             }
           } finally {
